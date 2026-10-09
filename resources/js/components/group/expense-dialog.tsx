@@ -37,7 +37,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { useDateTimeInput } from '@/hooks/use-date-time-input';
 import { toInput, toMinor } from '@/lib/money';
-import { calculateSplit } from '@/lib/split';
+import { allocate, calculateSplit } from '@/lib/split';
 import { cn } from '@/lib/utils';
 import type { Expense, SplitType } from '@/types/group';
 
@@ -144,6 +144,8 @@ function ExpenseForm({
         ),
     );
 
+    const [vat, setVat] = useState('5');
+
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [processing, setProcessing] = useState(false);
 
@@ -224,6 +226,30 @@ function ExpenseForm({
         } else {
             setValues({});
         }
+    };
+
+    // Grow every exact value by VAT. The new total is rounded once and spread
+    // proportionally, so the values add up to exactly (old sum + VAT).
+    const applyVat = () => {
+        const rate = Number(vat);
+        const weights: [number, number][] = rows.map((r) => [
+            r.member_id,
+            toMinor(r.value, exp),
+        ]);
+        const sum = weights.reduce((s, [, w]) => s + w, 0);
+
+        if (!(rate > 0) || sum <= 0) {
+            return;
+        }
+
+        const grown = allocate(Math.round(sum * (1 + rate / 100)), weights);
+
+        setValues((prev) => ({
+            ...prev,
+            ...Object.fromEntries(
+                Object.entries(grown).map(([id, v]) => [id, toInput(v, exp)]),
+            ),
+        }));
     };
 
     const submit = (event: React.FormEvent) => {
@@ -430,6 +456,46 @@ function ExpenseForm({
                             options={SPLIT_OPTIONS}
                         />
                     </div>
+
+                    {splitType === 'exact' && (
+                        <div className="flex items-center justify-end gap-2">
+                            <span className="text-xs text-muted-foreground">
+                                VAT
+                            </span>
+                            <div className="relative">
+                                <Input
+                                    value={vat}
+                                    onChange={(e) =>
+                                        setVat(
+                                            e.target.value.replace(
+                                                /[^0-9.]/g,
+                                                '',
+                                            ),
+                                        )
+                                    }
+                                    inputMode="decimal"
+                                    placeholder="5"
+                                    aria-label="VAT percentage"
+                                    className="tabular h-8 w-16 pr-6 text-right"
+                                />
+                                <span className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs text-muted-foreground">
+                                    %
+                                </span>
+                            </div>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={applyVat}
+                                disabled={
+                                    !(Number(vat) > 0) || rows.length === 0
+                                }
+                            >
+                                <Plus />
+                                Add VAT
+                            </Button>
+                        </div>
+                    )}
 
                     <div className="divide-y rounded-xl border bg-white/2">
                         {activeMembers.map((m) => {
