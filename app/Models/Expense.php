@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\SplitCalculator;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
@@ -87,6 +88,45 @@ class Expense extends Model
     public function comments(): HasMany
     {
         return $this->hasMany(ExpenseComment::class)->oldest();
+    }
+
+    public function isClaim(): bool
+    {
+        return $this->split_type === SplitCalculator::CLAIM;
+    }
+
+    /**
+     * Claim expenses: the part nobody has claimed yet. It stays with the payers.
+     */
+    public function unclaimedAmount(): int
+    {
+        return $this->isClaim() ? max(0, $this->amount - (int) $this->splits->sum('amount')) : 0;
+    }
+
+    /**
+     * What each member's share of the expense really is: their split, plus
+     * (for claim expenses) the payers' cut of anything still unclaimed.
+     *
+     * @return array<int, int> member id => minor units
+     */
+    public function owedShares(): array
+    {
+        $shares = [];
+
+        foreach ($this->splits as $split) {
+            $shares[$split->member_id] = ($shares[$split->member_id] ?? 0) + $split->amount;
+        }
+
+        $unclaimed = $this->unclaimedAmount();
+        $payerWeights = $this->payers->mapWithKeys(fn (ExpensePayer $p) => [$p->member_id => $p->amount])->all();
+
+        if ($unclaimed > 0 && $payerWeights !== []) {
+            foreach (SplitCalculator::allocate($unclaimed, $payerWeights) as $memberId => $amount) {
+                $shares[$memberId] = ($shares[$memberId] ?? 0) + $amount;
+            }
+        }
+
+        return $shares;
     }
 
     /**

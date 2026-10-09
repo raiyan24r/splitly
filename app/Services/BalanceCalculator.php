@@ -62,18 +62,18 @@ class BalanceCalculator
                 $net[$payer->member_id] = ($net[$payer->member_id] ?? 0) + $payer->amount;
             }
 
-            foreach ($expense->splits as $split) {
-                $share[$split->member_id] = ($share[$split->member_id] ?? 0) + $split->amount;
-                $net[$split->member_id] = ($net[$split->member_id] ?? 0) - $split->amount;
+            foreach ($expense->owedShares() as $memberId => $owed) {
+                $share[$memberId] = ($share[$memberId] ?? 0) + $owed;
+                $net[$memberId] = ($net[$memberId] ?? 0) - $owed;
 
-                if ($split->amount <= 0 || $payerWeights === []) {
+                if ($owed <= 0 || $payerWeights === []) {
                     continue;
                 }
 
                 // Each person's share is owed to the payers in proportion to what they paid.
-                foreach (SplitCalculator::allocate($split->amount, $payerWeights) as $payerId => $amount) {
-                    if ($payerId !== $split->member_id) {
-                        $owes[$split->member_id][$payerId] = ($owes[$split->member_id][$payerId] ?? 0) + $amount;
+                foreach (SplitCalculator::allocate($owed, $payerWeights) as $payerId => $amount) {
+                    if ($payerId !== $memberId) {
+                        $owes[$memberId][$payerId] = ($owes[$memberId][$payerId] ?? 0) + $amount;
                     }
                 }
             }

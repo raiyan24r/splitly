@@ -18,7 +18,13 @@ class SplitCalculator
 
     public const ADJUSTMENT = 'adjustment';
 
-    public const TYPES = [self::EQUAL, self::EXACT, self::PERCENT, self::SHARES, self::ADJUSTMENT];
+    /**
+     * The payer only picks who is involved; each person later claims what
+     * they owe themselves. Handled by SaveExpense / ClaimExpense, not split().
+     */
+    public const CLAIM = 'claim';
+
+    public const TYPES = [self::EQUAL, self::EXACT, self::PERCENT, self::SHARES, self::ADJUSTMENT, self::CLAIM];
 
     /**
      * Precision used to turn fractional percentages / shares into integer weights.

@@ -1,6 +1,13 @@
-import { Banknote, MessageCircle, Paperclip, Search } from 'lucide-react';
+import {
+    Banknote,
+    HandCoins,
+    MessageCircle,
+    Paperclip,
+    Search,
+} from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { CategoryIcon, categoryLabel } from '@/components/group/category-icon';
+import { awaitsClaim, ClaimForm, unclaimedCut } from '@/components/group/claim';
 import { displayName, useGroup } from '@/components/group/group-context';
 import {
     dayKey,
@@ -97,6 +104,8 @@ export function ExpensesPanel({
 
     return (
         <div className="space-y-6">
+            <PendingClaims expenses={expenses} onOpenExpense={onOpenExpense} />
+
             <div className="relative">
                 <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -139,6 +148,69 @@ export function ExpensesPanel({
     );
 }
 
+/** Claim expenses still waiting for the current member to enter their share. */
+function PendingClaims({
+    expenses,
+    onOpenExpense,
+}: {
+    expenses: Expense[];
+    onOpenExpense: (expense: Expense) => void;
+}) {
+    const { me, member, money, readOnly } = useGroup();
+
+    const pending = expenses.filter((e) => awaitsClaim(e, me?.id));
+
+    if (readOnly || pending.length === 0) {
+        return null;
+    }
+
+    return (
+        <section className="animate-pop-in space-y-3 rounded-2xl border border-amber-400/40 bg-amber-400/5 p-4">
+            <div className="flex items-center gap-2 text-sm font-medium text-amber-400">
+                <HandCoins className="size-4" />
+                {pending.length === 1
+                    ? 'An expense is waiting for your share'
+                    : `${pending.length} expenses are waiting for your share`}
+            </div>
+            {pending.map((e) => (
+                <div
+                    key={e.id}
+                    className="space-y-2 rounded-xl border bg-background/60 p-3"
+                >
+                    <button
+                        type="button"
+                        onClick={() => onOpenExpense(e)}
+                        className="flex w-full items-center gap-3 text-left"
+                    >
+                        <CategoryIcon category={e.category} />
+                        <div className="min-w-0 flex-1">
+                            <div className="truncate font-medium">
+                                {e.description}
+                            </div>
+                            <div className="truncate text-xs text-muted-foreground">
+                                {e.payers
+                                    .map((p) =>
+                                        displayName(
+                                            member(p.member_id),
+                                            me?.id,
+                                        ),
+                                    )
+                                    .join(', ')}{' '}
+                                paid{' '}
+                                <span className="tabular">
+                                    {money(e.amount)}
+                                </span>{' '}
+                                · {formatDate(dayKey(e.spent_at))}
+                            </div>
+                        </div>
+                    </button>
+                    <ClaimForm expense={e} />
+                </div>
+            ))}
+        </section>
+    );
+}
+
 function DateBadge({ date }: { date: string }) {
     const day = dayKey(date);
 
@@ -173,8 +245,10 @@ function ExpenseRow({
     const paid =
         expense.payers.find((p) => p.member_id === me?.id)?.amount ?? 0;
     const owed =
-        expense.splits.find((s) => s.member_id === me?.id)?.amount ?? 0;
+        (expense.splits.find((s) => s.member_id === me?.id)?.amount ?? 0) +
+        unclaimedCut(expense, me?.id);
     const effect = paid - owed;
+    const awaitingMe = awaitsClaim(expense, me?.id);
 
     const payerLabel =
         expense.payers.length > 1
@@ -185,7 +259,10 @@ function ExpenseRow({
         <button
             type="button"
             onClick={onClick}
-            className="group flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left transition-colors hover:bg-white/3"
+            className={cn(
+                'group flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left transition-colors hover:bg-white/3',
+                awaitingMe && 'bg-amber-400/5 ring-1 ring-amber-400/40',
+            )}
         >
             <DateBadge date={expense.spent_at} />
             <CategoryIcon category={expense.category} />
@@ -211,10 +288,21 @@ function ExpenseRow({
                         {' '}
                         · {formatTime(expense.spent_at)}
                     </span>
+                    {expense.unclaimed > 0 && (
+                        <span className="text-amber-400/80">
+                            {' '}
+                            · {money(expense.unclaimed)} unclaimed
+                        </span>
+                    )}
                 </div>
             </div>
             <div className="shrink-0 text-right">
-                {me && effect !== 0 ? (
+                {awaitingMe ? (
+                    <div className="flex items-center gap-1 text-xs font-medium text-amber-400">
+                        <HandCoins className="size-3.5" />
+                        enter your share
+                    </div>
+                ) : me && effect !== 0 ? (
                     <>
                         <div
                             className={cn(

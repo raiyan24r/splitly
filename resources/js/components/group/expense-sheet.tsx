@@ -5,6 +5,7 @@ import CommentController from '@/actions/App/Http/Controllers/CommentController'
 import ExpenseController from '@/actions/App/Http/Controllers/ExpenseController';
 import { DeviceLine } from '@/components/device-line';
 import { CategoryIcon, categoryLabel } from '@/components/group/category-icon';
+import { ClaimForm } from '@/components/group/claim';
 import { displayName, useGroup } from '@/components/group/group-context';
 import { MemberAvatar } from '@/components/group/member-avatar';
 import { When } from '@/components/when';
@@ -16,6 +17,7 @@ import {
     SheetTitle,
 } from '@/components/ui/sheet';
 import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 import type { ActivityItem, Expense } from '@/types/group';
 
 const SPLIT_LABELS: Record<string, string> = {
@@ -24,6 +26,7 @@ const SPLIT_LABELS: Record<string, string> = {
     percent: 'Split by percentage',
     shares: 'Split by shares',
     adjustment: 'Split equally with adjustments',
+    claim: 'Everyone claims their own share',
 };
 
 export function ExpenseSheet({
@@ -105,6 +108,7 @@ function Details({
     };
 
     const isImage = expense.receipt_url !== null && !expense.receipt_is_pdf;
+    const isClaim = expense.split_type === 'claim';
 
     return (
         <div className="flex flex-col">
@@ -168,16 +172,35 @@ function Details({
                     <h3 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                         {SPLIT_LABELS[expense.split_type]}
                     </h3>
-                    {expense.splits.map((s) => (
-                        <Row
-                            key={s.member_id}
-                            memberId={s.member_id}
-                            right={money(s.amount)}
-                            label={`${displayName(member(s.member_id), me?.id)} ${
-                                s.member_id === me?.id ? 'owe' : 'owes'
-                            }`}
-                        />
-                    ))}
+                    {expense.splits.map((s) =>
+                        isClaim && s.input_value === null ? (
+                            <Row
+                                key={s.member_id}
+                                memberId={s.member_id}
+                                right="not claimed yet"
+                                muted
+                                label={displayName(member(s.member_id), me?.id)}
+                            />
+                        ) : (
+                            <Row
+                                key={s.member_id}
+                                memberId={s.member_id}
+                                right={money(s.amount)}
+                                label={`${displayName(member(s.member_id), me?.id)} ${
+                                    s.member_id === me?.id ? 'owe' : 'owes'
+                                }`}
+                            />
+                        ),
+                    )}
+                    {expense.unclaimed > 0 && (
+                        <p className="text-xs text-amber-400">
+                            {money(expense.unclaimed)} unclaimed. It stays with
+                            whoever paid until someone claims it.
+                        </p>
+                    )}
+                    {isClaim && !readOnly && (
+                        <ClaimForm expense={expense} className="pt-1" />
+                    )}
                 </section>
 
                 {expense.notes && (
@@ -326,10 +349,12 @@ function Row({
     memberId,
     label,
     right,
+    muted,
 }: {
     memberId: number;
     label: string;
     right: string;
+    muted?: boolean;
 }) {
     const { member } = useGroup();
 
@@ -337,7 +362,14 @@ function Row({
         <div className="flex items-center gap-3">
             <MemberAvatar member={member(memberId)} size="sm" />
             <span className="flex-1 truncate text-sm">{label}</span>
-            <span className="tabular text-sm">{right}</span>
+            <span
+                className={cn(
+                    'tabular text-sm',
+                    muted && 'text-xs text-muted-foreground italic',
+                )}
+            >
+                {right}
+            </span>
         </div>
     );
 }

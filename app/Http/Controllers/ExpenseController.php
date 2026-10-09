@@ -7,9 +7,13 @@ use App\Http\Requests\ExpenseRequest;
 use App\Models\Expense;
 use App\Models\Group;
 use App\Services\AuditLogger;
+use App\Support\CurrentMember;
 use App\Support\Money;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -29,6 +33,46 @@ class ExpenseController extends Controller
         $save->handle($group, $expense, $request->expenseData(), $request->file('receipt'));
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Expense updated']);
+
+        return back();
+    }
+
+    /**
+     * A member of a claim expense enters how much of it they owe.
+     */
+    public function claim(Request $request, Group $group, Expense $expense, CurrentMember $current, AuditLogger $audit): RedirectResponse
+    {
+        $request->validate(['amount' => ['required', 'numeric', 'min:0', 'max:99999999']]);
+
+        $member = $current->member;
+        $amount = Money::toMinor($request->string('amount')->toString(), $group->currency);
+
+        if (! $expense->isClaim() || $member === null) {
+            throw ValidationException::withMessages(['amount' => 'You can not claim a share of this expense.']);
+        }
+
+        DB::transaction(function () use ($expense, $member, $amount, $group) {
+            $splits = $expense->splits()->lockForUpdate()->get();
+            $mine = $splits->firstWhere('member_id', $member->id);
+
+            if ($mine === null) {
+                throw ValidationException::withMessages(['amount' => 'You are not part of this expense.']);
+            }
+
+            $left = $expense->amount - (int) $splits->where('id', '!=', $mine->id)->sum('amount');
+
+            if ($amount > $left) {
+                throw ValidationException::withMessages([
+                    'amount' => 'Only '.Money::format($left, $group->currency).' is left to claim.',
+                ]);
+            }
+
+            $mine->update(['amount' => $amount, 'input_value' => Money::toDecimal($amount, $group->currency)]);
+        });
+
+        $audit->log($group, 'expense.claimed', 'Claimed '.Money::format($amount, $group->currency)." of \"{$expense->description}\"", $expense);
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => "Saved your share of \"{$expense->description}\""]);
 
         return back();
     }

@@ -136,6 +136,7 @@ class GroupPageData
                 'amount' => $s->amount,
                 'input_value' => $s->input_value,
             ]),
+            'unclaimed' => $e->unclaimedAmount(),
             'comments' => $e->comments->map(fn (ExpenseComment $c) => [
                 'id' => $c->id,
                 'member_id' => $c->member_id,

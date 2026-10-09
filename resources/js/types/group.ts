@@ -1,4 +1,10 @@
-export type SplitType = 'equal' | 'exact' | 'percent' | 'shares' | 'adjustment';
+export type SplitType =
+    | 'equal'
+    | 'exact'
+    | 'percent'
+    | 'shares'
+    | 'adjustment'
+    | 'claim';
 
 export type GroupInfo = {
     id: number;
@@ -41,7 +47,10 @@ export type Expense = {
     created_at: string;
     updated_at: string;
     payers: { member_id: number; amount: number }[];
+    /** Claim splits: input_value is null until that person has claimed. */
     splits: { member_id: number; amount: number; input_value: string | null }[];
+    /** Claim expenses: the part nobody has claimed yet (it stays with the payers). */
+    unclaimed: number;
     comments: Comment[];
 };
 

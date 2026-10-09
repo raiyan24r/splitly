@@ -38,8 +38,8 @@ class ExportController extends Controller
                     $effect[$p->member_id] = ($effect[$p->member_id] ?? 0) + $p->amount;
                 }
 
-                foreach ($expense->splits as $s) {
-                    $effect[$s->member_id] = ($effect[$s->member_id] ?? 0) - $s->amount;
+                foreach ($expense->owedShares() as $memberId => $owed) {
+                    $effect[$memberId] = ($effect[$memberId] ?? 0) - $owed;
                 }
 
                 $rows->push([$expense->spent_at->format('Y-m-d H:i'), $expense->description, $expense->category, $expense->amount, $effect]);

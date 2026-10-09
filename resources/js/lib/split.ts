@@ -80,6 +80,10 @@ export function calculateSplit(
                 ),
             };
 
+        // Nobody owes anything until they claim it themselves.
+        case 'claim':
+            return { ok: true, amounts: empty };
+
         case 'exact': {
             const amounts = Object.fromEntries(
                 rows.map((r) => [r.member_id, toMinor(r.value, exponent)]),

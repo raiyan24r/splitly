@@ -43,7 +43,9 @@ class SaveExpense
         $total = Money::toMinor($data['amount'], $currency);
 
         $payers = $this->payers($data['payers'], $total, $currency);
-        $splits = $this->splits($data['split_type'], $data['splits'], $total, $currency);
+        $splits = $data['split_type'] === SplitCalculator::CLAIM
+            ? $this->claimSplits($expense, $data['splits'], $total, $currency)
+            : $this->splits($data['split_type'], $data['splits'], $total, $currency);
 
         $before = $expense?->auditSnapshot();
         $oldReceipt = $expense?->receipt_path;
@@ -135,6 +137,39 @@ class SaveExpense
         }
 
         return $amounts;
+    }
+
+    /**
+     * Claim expenses: the rows only say who is involved. Whatever people have
+     * already claimed is kept; anyone newly added starts unclaimed.
+     *
+     * @param  list<array{member_id: int, value: string|null}>  $rows
+     * @return list<array{member_id: int, amount: int, input_value: string|null}>
+     */
+    private function claimSplits(?Expense $expense, array $rows, int $total, string $currency): array
+    {
+        $existing = $expense?->isClaim() ? $expense->splits->keyBy('member_id') : collect();
+        $result = [];
+
+        foreach ($rows as $row) {
+            $claim = $existing->get($row['member_id']);
+
+            $result[] = [
+                'member_id' => $row['member_id'],
+                'amount' => $claim->amount ?? 0,
+                'input_value' => $claim?->input_value,
+            ];
+        }
+
+        $claimed = array_sum(array_column($result, 'amount'));
+
+        if ($claimed > $total) {
+            throw ValidationException::withMessages([
+                'amount' => 'People have already claimed '.Money::format($claimed, $currency).', more than this total.',
+            ]);
+        }
+
+        return $result;
     }
 
     /**

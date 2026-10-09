@@ -16,6 +16,7 @@ import { CategoryIcon, categoryLabel } from '@/components/group/category-icon';
 import { useGroup } from '@/components/group/group-context';
 import { MemberAvatar } from '@/components/group/member-avatar';
 import { fromDateTimeInput, zoneLabel } from '@/components/group/time';
+import { VatControl } from '@/components/group/vat-control';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import {
@@ -43,8 +44,13 @@ import type { Expense, SplitType } from '@/types/group';
 
 const SPLIT_OPTIONS: { value: SplitType; label: string }[] = [
     { value: 'equal', label: 'Equally' },
+    { value: 'claim', label: 'Claim' },
     { value: 'exact', label: 'Exact' },
     { value: 'percent', label: '%' },
+];
+
+// No longer offered for new expenses, but older ones that use them can still be edited.
+const LEGACY_SPLIT_OPTIONS: { value: SplitType; label: string }[] = [
     { value: 'shares', label: 'Shares' },
     { value: 'adjustment', label: '+/−' },
 ];
@@ -144,13 +150,22 @@ function ExpenseForm({
         ),
     );
 
-    const [vat, setVat] = useState('5');
-
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [processing, setProcessing] = useState(false);
 
     const total = toMinor(amount, exp);
-    const usesInclusion = splitType === 'equal' || splitType === 'adjustment';
+    const usesInclusion =
+        splitType === 'equal' ||
+        splitType === 'adjustment' ||
+        splitType === 'claim';
+    // Claims people already made on this expense; the server keeps them on save.
+    const claims = new Map(
+        expense?.split_type === 'claim'
+            ? expense.splits
+                  .filter((s) => s.input_value !== null)
+                  .map((s) => [s.member_id, s.amount])
+            : [],
+    );
 
     const rows = useMemo(
         () =>
@@ -230,8 +245,7 @@ function ExpenseForm({
 
     // Grow every exact value by VAT. The new total is rounded once and spread
     // proportionally, so the values add up to exactly (old sum + VAT).
-    const applyVat = () => {
-        const rate = Number(vat);
+    const applyVat = (rate: number) => {
         const weights: [number, number][] = rows.map((r) => [
             r.member_id,
             toMinor(r.value, exp),
@@ -453,48 +467,21 @@ function ExpenseForm({
                             size="sm"
                             value={splitType}
                             onChange={changeSplitType}
-                            options={SPLIT_OPTIONS}
+                            options={[
+                                ...SPLIT_OPTIONS,
+                                ...LEGACY_SPLIT_OPTIONS.filter(
+                                    (o) => o.value === expense?.split_type,
+                                ),
+                            ]}
                         />
                     </div>
 
                     {splitType === 'exact' && (
-                        <div className="flex items-center justify-end gap-2">
-                            <span className="text-xs text-muted-foreground">
-                                VAT
-                            </span>
-                            <div className="relative">
-                                <Input
-                                    value={vat}
-                                    onChange={(e) =>
-                                        setVat(
-                                            e.target.value.replace(
-                                                /[^0-9.]/g,
-                                                '',
-                                            ),
-                                        )
-                                    }
-                                    inputMode="decimal"
-                                    placeholder="5"
-                                    aria-label="VAT percentage"
-                                    className="tabular h-8 w-16 pr-6 text-right"
-                                />
-                                <span className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs text-muted-foreground">
-                                    %
-                                </span>
-                            </div>
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                onClick={applyVat}
-                                disabled={
-                                    !(Number(vat) > 0) || rows.length === 0
-                                }
-                            >
-                                <Plus />
-                                Add VAT
-                            </Button>
-                        </div>
+                        <VatControl
+                            onApply={applyVat}
+                            disabled={rows.length === 0}
+                            className="justify-end"
+                        />
                     )}
 
                     <div className="divide-y rounded-xl border bg-white/2">
@@ -533,38 +520,56 @@ function ExpenseForm({
                                         {m.id === me?.id ? 'You' : m.name}
                                     </span>
 
-                                    {splitType !== 'equal' && (
-                                        <ValueInput
-                                            type={splitType}
-                                            value={values[m.id] ?? ''}
-                                            disabled={
-                                                splitType === 'adjustment' &&
-                                                !on
-                                            }
-                                            onChange={(v) =>
-                                                setValues({
-                                                    ...values,
-                                                    [m.id]: v,
-                                                })
-                                            }
-                                        />
-                                    )}
-
-                                    <span
-                                        className={cn(
-                                            'tabular w-24 text-right text-sm',
-                                            owed > 0
-                                                ? 'text-foreground'
-                                                : 'text-muted-foreground',
+                                    {splitType !== 'equal' &&
+                                        splitType !== 'claim' && (
+                                            <ValueInput
+                                                type={splitType}
+                                                value={values[m.id] ?? ''}
+                                                disabled={
+                                                    splitType ===
+                                                        'adjustment' && !on
+                                                }
+                                                onChange={(v) =>
+                                                    setValues({
+                                                        ...values,
+                                                        [m.id]: v,
+                                                    })
+                                                }
+                                            />
                                         )}
-                                    >
-                                        {money(owed)}
-                                    </span>
+
+                                    {splitType === 'claim' ? (
+                                        <span className="w-24 text-right text-xs text-muted-foreground">
+                                            {on &&
+                                                (claims.has(m.id)
+                                                    ? money(claims.get(m.id)!)
+                                                    : 'claims later')}
+                                        </span>
+                                    ) : (
+                                        <span
+                                            className={cn(
+                                                'tabular w-24 text-right text-sm',
+                                                owed > 0
+                                                    ? 'text-foreground'
+                                                    : 'text-muted-foreground',
+                                            )}
+                                        >
+                                            {money(owed)}
+                                        </span>
+                                    )}
                                 </div>
                             );
                         })}
                         <AddPersonRow onAdded={includeNewMember} />
                     </div>
+
+                    {splitType === 'claim' && (
+                        <p className="text-xs text-muted-foreground">
+                            Each person enters how much of this they owe next
+                            time they open the group. Anything nobody claims
+                            stays with whoever paid.
+                        </p>
+                    )}
 
                     {!split.ok && total > 0 && (
                         <p className="text-sm text-amber-400">
@@ -589,7 +594,9 @@ function ExpenseForm({
                         className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
                     >
                         <StickyNote className="size-4" />
-                        {RECEIPTS_ENABLED ? 'Add notes or a receipt' : 'Add notes'}
+                        {RECEIPTS_ENABLED
+                            ? 'Add notes or a receipt'
+                            : 'Add notes'}
                         <ChevronDown className="size-4" />
                     </button>
                 ) : (
@@ -755,6 +762,7 @@ function ValueInput({
         exact: '',
         adjustment: '±',
         equal: '',
+        claim: '',
     }[type];
     const allowNegative = type === 'adjustment';
 

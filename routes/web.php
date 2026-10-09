@@ -45,6 +45,7 @@ Route::prefix('g/{group}')->name('groups.')->scopeBindings()->group(function () 
             Route::post('expenses', [ExpenseController::class, 'store'])->name('expenses.store');
             Route::put('expenses/{expense}', [ExpenseController::class, 'update'])->name('expenses.update');
             Route::delete('expenses/{expense}', [ExpenseController::class, 'destroy'])->name('expenses.destroy');
+            Route::put('expenses/{expense}/claim', [ExpenseController::class, 'claim'])->name('expenses.claim');
             Route::post('expenses/{expense}/restore', [ExpenseController::class, 'restore'])
                 ->withoutScopedBindings()
                 ->name('expenses.restore');
