@@ -38,17 +38,26 @@ export function unclaimedCut(expense: Expense, memberId: number | undefined) {
     );
 }
 
-/** Lets the current member enter (or change) how much of an expense they owe. */
+/**
+ * Enter (or change) how much of an expense someone owes. Defaults to the
+ * current member; pass memberId to fill it in for someone else.
+ */
 export function ClaimForm({
     expense,
+    memberId,
+    onSaved,
     className,
 }: {
     expense: Expense;
+    memberId?: number;
+    onSaved?: () => void;
     className?: string;
 }) {
-    const { group, me, money } = useGroup();
+    const { group, me, member, money } = useGroup();
     const exp = group.exponent;
-    const mine = claimOf(expense, me?.id);
+    const forId = memberId ?? me?.id;
+    const self = forId === me?.id;
+    const mine = claimOf(expense, forId);
     // What this member could claim: their current claim plus whatever is unclaimed.
     const available = (mine?.amount ?? 0) + expense.unclaimed;
 
@@ -76,13 +85,16 @@ export function ClaimForm({
 
         router.put(
             ExpenseController.claim.url([group.slug, expense.id]),
-            { amount },
+            { amount, member_id: self ? null : forId },
             {
                 preserveScroll: true,
                 onStart: () => setProcessing(true),
                 onFinish: () => setProcessing(false),
                 onError: (errors) => setError(errors.amount),
-                onSuccess: () => setError(undefined),
+                onSuccess: () => {
+                    setError(undefined);
+                    onSaved?.();
+                },
             },
         );
     };
@@ -101,7 +113,11 @@ export function ClaimForm({
                         }
                         inputMode="decimal"
                         placeholder={(0).toFixed(exp)}
-                        aria-label="Your share"
+                        aria-label={
+                            self
+                                ? 'Your share'
+                                : `${member(mine.member_id)?.name ?? 'Their'}'s share`
+                        }
                         className="tabular h-9 pl-12"
                     />
                 </div>
@@ -112,7 +128,11 @@ export function ClaimForm({
                     disabled={amount === '' || processing}
                 >
                     {processing && <Spinner />}
-                    {mine.input_value === null ? 'Save my share' : 'Update'}
+                    {mine.input_value !== null
+                        ? 'Update'
+                        : self
+                          ? 'Save my share'
+                          : 'Save'}
                 </Button>
             </div>
             <div className="flex flex-wrap items-center justify-between gap-2">

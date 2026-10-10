@@ -73,6 +73,11 @@ function Details({
     const { group, member, me, money, readOnly } = useGroup();
     const [comment, setComment] = useState('');
     const [sending, setSending] = useState(false);
+    // Claim expenses: whose share is being filled in from the list.
+    const [editing, setEditing] = useState<number | null>(null);
+
+    const toggleEditing = (memberId: number) =>
+        setEditing((current) => (current === memberId ? null : memberId));
 
     const remove = () => {
         router.delete(ExpenseController.destroy.url([group.slug, expense.id]), {
@@ -172,26 +177,55 @@ function Details({
                     <h3 className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                         {SPLIT_LABELS[expense.split_type]}
                     </h3>
-                    {expense.splits.map((s) =>
-                        isClaim && s.input_value === null ? (
-                            <Row
-                                key={s.member_id}
-                                memberId={s.member_id}
-                                right="not claimed yet"
-                                muted
-                                label={displayName(member(s.member_id), me?.id)}
-                            />
-                        ) : (
-                            <Row
-                                key={s.member_id}
-                                memberId={s.member_id}
-                                right={money(s.amount)}
-                                label={`${displayName(member(s.member_id), me?.id)} ${
-                                    s.member_id === me?.id ? 'owe' : 'owes'
-                                }`}
-                            />
-                        ),
-                    )}
+                    {expense.splits.map((s) => {
+                        // Your own share has its form below; anyone else's can be set from here.
+                        const editable =
+                            isClaim && !readOnly && s.member_id !== me?.id;
+                        const row =
+                            isClaim && s.input_value === null ? (
+                                <Row
+                                    memberId={s.member_id}
+                                    right="not claimed yet"
+                                    muted
+                                    label={displayName(
+                                        member(s.member_id),
+                                        me?.id,
+                                    )}
+                                    onEdit={
+                                        editable
+                                            ? () => toggleEditing(s.member_id)
+                                            : undefined
+                                    }
+                                />
+                            ) : (
+                                <Row
+                                    memberId={s.member_id}
+                                    right={money(s.amount)}
+                                    label={`${displayName(member(s.member_id), me?.id)} ${
+                                        s.member_id === me?.id ? 'owe' : 'owes'
+                                    }`}
+                                    onEdit={
+                                        editable
+                                            ? () => toggleEditing(s.member_id)
+                                            : undefined
+                                    }
+                                />
+                            );
+
+                        return (
+                            <div key={s.member_id} className="space-y-2">
+                                {row}
+                                {editable && editing === s.member_id && (
+                                    <ClaimForm
+                                        expense={expense}
+                                        memberId={s.member_id}
+                                        onSaved={() => setEditing(null)}
+                                        className="animate-pop-in pl-10"
+                                    />
+                                )}
+                            </div>
+                        );
+                    })}
                     {expense.unclaimed > 0 && (
                         <p className="text-xs text-amber-400">
                             {money(expense.unclaimed)} unclaimed. It stays with
@@ -350,11 +384,13 @@ function Row({
     label,
     right,
     muted,
+    onEdit,
 }: {
     memberId: number;
     label: string;
     right: string;
     muted?: boolean;
+    onEdit?: () => void;
 }) {
     const { member } = useGroup();
 
@@ -370,6 +406,16 @@ function Row({
             >
                 {right}
             </span>
+            {onEdit && (
+                <button
+                    type="button"
+                    onClick={onEdit}
+                    className="-mr-1 rounded-md p-1 text-muted-foreground transition-colors hover:text-primary"
+                    aria-label={`Set ${member(memberId)?.name ?? 'their'}'s share`}
+                >
+                    <Pencil className="size-3.5" />
+                </button>
+            )}
         </div>
     );
 }

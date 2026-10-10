@@ -38,28 +38,39 @@ class ExpenseController extends Controller
     }
 
     /**
-     * A member of a claim expense enters how much of it they owe.
+     * Enters how much of a claim expense someone owes. Usually people claim
+     * their own share, but anyone in the group can set or fix someone else's.
      */
     public function claim(Request $request, Group $group, Expense $expense, CurrentMember $current, AuditLogger $audit): RedirectResponse
     {
-        $request->validate(['amount' => ['required', 'numeric', 'min:0', 'max:99999999']]);
+        $request->validate([
+            'amount' => ['required', 'numeric', 'min:0', 'max:99999999'],
+            'member_id' => ['nullable', 'integer'],
+        ]);
 
-        $member = $current->member;
+        $actor = $current->member;
         $amount = Money::toMinor($request->string('amount')->toString(), $group->currency);
 
-        if (! $expense->isClaim() || $member === null) {
+        if (! $expense->isClaim() || $actor === null) {
             throw ValidationException::withMessages(['amount' => 'You can not claim a share of this expense.']);
         }
 
-        DB::transaction(function () use ($expense, $member, $amount, $group) {
-            $splits = $expense->splits()->lockForUpdate()->get();
-            $mine = $splits->firstWhere('member_id', $member->id);
+        $member = $request->filled('member_id')
+            ? $group->members()->find($request->integer('member_id'))
+            : $actor;
+        $self = $member?->is($actor);
 
-            if ($mine === null) {
-                throw ValidationException::withMessages(['amount' => 'You are not part of this expense.']);
+        DB::transaction(function () use ($expense, $member, $self, $amount, $group) {
+            $splits = $expense->splits()->lockForUpdate()->get();
+            $split = $member ? $splits->firstWhere('member_id', $member->id) : null;
+
+            if ($split === null) {
+                throw ValidationException::withMessages([
+                    'amount' => $self ? 'You are not part of this expense.' : 'They are not part of this expense.',
+                ]);
             }
 
-            $left = $expense->amount - (int) $splits->where('id', '!=', $mine->id)->sum('amount');
+            $left = $expense->amount - (int) $splits->where('id', '!=', $split->id)->sum('amount');
 
             if ($amount > $left) {
                 throw ValidationException::withMessages([
@@ -67,12 +78,18 @@ class ExpenseController extends Controller
                 ]);
             }
 
-            $mine->update(['amount' => $amount, 'input_value' => Money::toDecimal($amount, $group->currency)]);
+            $split->update(['amount' => $amount, 'input_value' => Money::toDecimal($amount, $group->currency)]);
         });
 
-        $audit->log($group, 'expense.claimed', 'Claimed '.Money::format($amount, $group->currency)." of \"{$expense->description}\"", $expense);
+        $formatted = Money::format($amount, $group->currency);
 
-        Inertia::flash('toast', ['type' => 'success', 'message' => "Saved your share of \"{$expense->description}\""]);
+        if ($self) {
+            $audit->log($group, 'expense.claimed', "Claimed {$formatted} of \"{$expense->description}\"", $expense);
+            Inertia::flash('toast', ['type' => 'success', 'message' => "Saved your share of \"{$expense->description}\""]);
+        } else {
+            $audit->log($group, 'expense.claimed', "Set {$member->name}'s share of \"{$expense->description}\" to {$formatted}", $expense);
+            Inertia::flash('toast', ['type' => 'success', 'message' => "Saved {$member->name}'s share of \"{$expense->description}\""]);
+        }
 
         return back();
     }

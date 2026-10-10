@@ -80,9 +80,21 @@ export function calculateSplit(
                 ),
             };
 
-        // Nobody owes anything until they claim it themselves.
-        case 'claim':
-            return { ok: true, amounts: empty };
+        // Only shares filled in now count; everyone else claims theirs later.
+        case 'claim': {
+            const amounts = Object.fromEntries(
+                rows
+                    .filter((r) => r.value !== '')
+                    .map((r) => [r.member_id, toMinor(r.value, exponent)]),
+            );
+            const left =
+                total -
+                Object.values(amounts).reduce((s: number, v) => s + v, 0);
+
+            return left >= 0
+                ? { ok: true, amounts }
+                : { ok: false, error: 'too much', amounts, remaining: left };
+        }
 
         case 'exact': {
             const amounts = Object.fromEntries(

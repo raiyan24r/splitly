@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\ExpenseController::receipt
-* @see app/Http/Controllers/ExpenseController.php:120
+* @see app/Http/Controllers/ExpenseController.php:137
 * @route '/g/{group}/expenses/{expense}/receipt'
 */
 export const receipt = (args: { group: string | { slug: string }, expense: number | { id: number } } | [group: string | { slug: string }, expense: number | { id: number } ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ receipt.definition = {
 
 /**
 * @see \App\Http\Controllers\ExpenseController::receipt
-* @see app/Http/Controllers/ExpenseController.php:120
+* @see app/Http/Controllers/ExpenseController.php:137
 * @route '/g/{group}/expenses/{expense}/receipt'
 */
 receipt.url = (args: { group: string | { slug: string }, expense: number | { id: number } } | [group: string | { slug: string }, expense: number | { id: number } ], options?: RouteQueryOptions) => {
@@ -46,7 +46,7 @@ receipt.url = (args: { group: string | { slug: string }, expense: number | { id:
 
 /**
 * @see \App\Http\Controllers\ExpenseController::receipt
-* @see app/Http/Controllers/ExpenseController.php:120
+* @see app/Http/Controllers/ExpenseController.php:137
 * @route '/g/{group}/expenses/{expense}/receipt'
 */
 receipt.get = (args: { group: string | { slug: string }, expense: number | { id: number } } | [group: string | { slug: string }, expense: number | { id: number } ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -56,7 +56,7 @@ receipt.get = (args: { group: string | { slug: string }, expense: number | { id:
 
 /**
 * @see \App\Http\Controllers\ExpenseController::receipt
-* @see app/Http/Controllers/ExpenseController.php:120
+* @see app/Http/Controllers/ExpenseController.php:137
 * @route '/g/{group}/expenses/{expense}/receipt'
 */
 receipt.head = (args: { group: string | { slug: string }, expense: number | { id: number } } | [group: string | { slug: string }, expense: number | { id: number } ], options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -66,7 +66,7 @@ receipt.head = (args: { group: string | { slug: string }, expense: number | { id
 
 /**
 * @see \App\Http\Controllers\ExpenseController::receipt
-* @see app/Http/Controllers/ExpenseController.php:120
+* @see app/Http/Controllers/ExpenseController.php:137
 * @route '/g/{group}/expenses/{expense}/receipt'
 */
 const receiptForm = (args: { group: string | { slug: string }, expense: number | { id: number } } | [group: string | { slug: string }, expense: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -76,7 +76,7 @@ const receiptForm = (args: { group: string | { slug: string }, expense: number |
 
 /**
 * @see \App\Http\Controllers\ExpenseController::receipt
-* @see app/Http/Controllers/ExpenseController.php:120
+* @see app/Http/Controllers/ExpenseController.php:137
 * @route '/g/{group}/expenses/{expense}/receipt'
 */
 receiptForm.get = (args: { group: string | { slug: string }, expense: number | { id: number } } | [group: string | { slug: string }, expense: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -86,7 +86,7 @@ receiptForm.get = (args: { group: string | { slug: string }, expense: number | {
 
 /**
 * @see \App\Http\Controllers\ExpenseController::receipt
-* @see app/Http/Controllers/ExpenseController.php:120
+* @see app/Http/Controllers/ExpenseController.php:137
 * @route '/g/{group}/expenses/{expense}/receipt'
 */
 receiptForm.head = (args: { group: string | { slug: string }, expense: number | { id: number } } | [group: string | { slug: string }, expense: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -270,7 +270,7 @@ update.form = updateForm
 
 /**
 * @see \App\Http\Controllers\ExpenseController::destroy
-* @see app/Http/Controllers/ExpenseController.php:80
+* @see app/Http/Controllers/ExpenseController.php:97
 * @route '/g/{group}/expenses/{expense}'
 */
 export const destroy = (args: { group: string | { slug: string }, expense: number | { id: number } } | [group: string | { slug: string }, expense: number | { id: number } ], options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -285,7 +285,7 @@ destroy.definition = {
 
 /**
 * @see \App\Http\Controllers\ExpenseController::destroy
-* @see app/Http/Controllers/ExpenseController.php:80
+* @see app/Http/Controllers/ExpenseController.php:97
 * @route '/g/{group}/expenses/{expense}'
 */
 destroy.url = (args: { group: string | { slug: string }, expense: number | { id: number } } | [group: string | { slug: string }, expense: number | { id: number } ], options?: RouteQueryOptions) => {
@@ -315,7 +315,7 @@ destroy.url = (args: { group: string | { slug: string }, expense: number | { id:
 
 /**
 * @see \App\Http\Controllers\ExpenseController::destroy
-* @see app/Http/Controllers/ExpenseController.php:80
+* @see app/Http/Controllers/ExpenseController.php:97
 * @route '/g/{group}/expenses/{expense}'
 */
 destroy.delete = (args: { group: string | { slug: string }, expense: number | { id: number } } | [group: string | { slug: string }, expense: number | { id: number } ], options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -325,7 +325,7 @@ destroy.delete = (args: { group: string | { slug: string }, expense: number | { 
 
 /**
 * @see \App\Http\Controllers\ExpenseController::destroy
-* @see app/Http/Controllers/ExpenseController.php:80
+* @see app/Http/Controllers/ExpenseController.php:97
 * @route '/g/{group}/expenses/{expense}'
 */
 const destroyForm = (args: { group: string | { slug: string }, expense: number | { id: number } } | [group: string | { slug: string }, expense: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -340,7 +340,7 @@ const destroyForm = (args: { group: string | { slug: string }, expense: number |
 
 /**
 * @see \App\Http\Controllers\ExpenseController::destroy
-* @see app/Http/Controllers/ExpenseController.php:80
+* @see app/Http/Controllers/ExpenseController.php:97
 * @route '/g/{group}/expenses/{expense}'
 */
 destroyForm.delete = (args: { group: string | { slug: string }, expense: number | { id: number } } | [group: string | { slug: string }, expense: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -357,7 +357,7 @@ destroy.form = destroyForm
 
 /**
 * @see \App\Http\Controllers\ExpenseController::claim
-* @see app/Http/Controllers/ExpenseController.php:43
+* @see app/Http/Controllers/ExpenseController.php:44
 * @route '/g/{group}/expenses/{expense}/claim'
 */
 export const claim = (args: { group: string | { slug: string }, expense: number | { id: number } } | [group: string | { slug: string }, expense: number | { id: number } ], options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -372,7 +372,7 @@ claim.definition = {
 
 /**
 * @see \App\Http\Controllers\ExpenseController::claim
-* @see app/Http/Controllers/ExpenseController.php:43
+* @see app/Http/Controllers/ExpenseController.php:44
 * @route '/g/{group}/expenses/{expense}/claim'
 */
 claim.url = (args: { group: string | { slug: string }, expense: number | { id: number } } | [group: string | { slug: string }, expense: number | { id: number } ], options?: RouteQueryOptions) => {
@@ -402,7 +402,7 @@ claim.url = (args: { group: string | { slug: string }, expense: number | { id: n
 
 /**
 * @see \App\Http\Controllers\ExpenseController::claim
-* @see app/Http/Controllers/ExpenseController.php:43
+* @see app/Http/Controllers/ExpenseController.php:44
 * @route '/g/{group}/expenses/{expense}/claim'
 */
 claim.put = (args: { group: string | { slug: string }, expense: number | { id: number } } | [group: string | { slug: string }, expense: number | { id: number } ], options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -412,7 +412,7 @@ claim.put = (args: { group: string | { slug: string }, expense: number | { id: n
 
 /**
 * @see \App\Http\Controllers\ExpenseController::claim
-* @see app/Http/Controllers/ExpenseController.php:43
+* @see app/Http/Controllers/ExpenseController.php:44
 * @route '/g/{group}/expenses/{expense}/claim'
 */
 const claimForm = (args: { group: string | { slug: string }, expense: number | { id: number } } | [group: string | { slug: string }, expense: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -427,7 +427,7 @@ const claimForm = (args: { group: string | { slug: string }, expense: number | {
 
 /**
 * @see \App\Http\Controllers\ExpenseController::claim
-* @see app/Http/Controllers/ExpenseController.php:43
+* @see app/Http/Controllers/ExpenseController.php:44
 * @route '/g/{group}/expenses/{expense}/claim'
 */
 claimForm.put = (args: { group: string | { slug: string }, expense: number | { id: number } } | [group: string | { slug: string }, expense: number | { id: number } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -444,7 +444,7 @@ claim.form = claimForm
 
 /**
 * @see \App\Http\Controllers\ExpenseController::restore
-* @see app/Http/Controllers/ExpenseController.php:95
+* @see app/Http/Controllers/ExpenseController.php:112
 * @route '/g/{group}/expenses/{expense}/restore'
 */
 export const restore = (args: { group: string | { slug: string }, expense: string | number } | [group: string | { slug: string }, expense: string | number ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -459,7 +459,7 @@ restore.definition = {
 
 /**
 * @see \App\Http\Controllers\ExpenseController::restore
-* @see app/Http/Controllers/ExpenseController.php:95
+* @see app/Http/Controllers/ExpenseController.php:112
 * @route '/g/{group}/expenses/{expense}/restore'
 */
 restore.url = (args: { group: string | { slug: string }, expense: string | number } | [group: string | { slug: string }, expense: string | number ], options?: RouteQueryOptions) => {
@@ -487,7 +487,7 @@ restore.url = (args: { group: string | { slug: string }, expense: string | numbe
 
 /**
 * @see \App\Http\Controllers\ExpenseController::restore
-* @see app/Http/Controllers/ExpenseController.php:95
+* @see app/Http/Controllers/ExpenseController.php:112
 * @route '/g/{group}/expenses/{expense}/restore'
 */
 restore.post = (args: { group: string | { slug: string }, expense: string | number } | [group: string | { slug: string }, expense: string | number ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -497,7 +497,7 @@ restore.post = (args: { group: string | { slug: string }, expense: string | numb
 
 /**
 * @see \App\Http\Controllers\ExpenseController::restore
-* @see app/Http/Controllers/ExpenseController.php:95
+* @see app/Http/Controllers/ExpenseController.php:112
 * @route '/g/{group}/expenses/{expense}/restore'
 */
 const restoreForm = (args: { group: string | { slug: string }, expense: string | number } | [group: string | { slug: string }, expense: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -507,7 +507,7 @@ const restoreForm = (args: { group: string | { slug: string }, expense: string |
 
 /**
 * @see \App\Http\Controllers\ExpenseController::restore
-* @see app/Http/Controllers/ExpenseController.php:95
+* @see app/Http/Controllers/ExpenseController.php:112
 * @route '/g/{group}/expenses/{expense}/restore'
 */
 restoreForm.post = (args: { group: string | { slug: string }, expense: string | number } | [group: string | { slug: string }, expense: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

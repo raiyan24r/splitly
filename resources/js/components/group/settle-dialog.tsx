@@ -2,7 +2,7 @@ import { router } from '@inertiajs/react';
 import { ArrowRight, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import PaymentController from '@/actions/App/Http/Controllers/PaymentController';
-import { useGroup } from '@/components/group/group-context';
+import { displayName, useGroup } from '@/components/group/group-context';
 import { MemberAvatar } from '@/components/group/member-avatar';
 import { fromDateTimeInput, zoneLabel } from '@/components/group/time';
 import InputError from '@/components/input-error';
@@ -144,18 +144,14 @@ function SettleForm({
                         {label}
                     </span>
                     <span className="w-full truncate text-center text-sm font-medium">
-                        {selected
-                            ? selected.id === me?.id
-                                ? 'You'
-                                : selected.name
-                            : 'Choose'}
+                        {selected ? displayName(selected, me?.id) : 'Choose'}
                     </span>
                 </SelectTrigger>
                 <SelectContent>
                     {activeMembers.map((m) => (
                         <SelectItem key={m.id} value={String(m.id)}>
                             <MemberAvatar member={m} size="xs" />
-                            {m.id === me?.id ? 'You' : m.name}
+                            {displayName(m, me?.id)}
                         </SelectItem>
                     ))}
                 </SelectContent>

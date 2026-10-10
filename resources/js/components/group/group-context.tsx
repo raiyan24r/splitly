@@ -57,7 +57,7 @@ export function displayName(member: Member | undefined, meId?: number | null) {
     }
 
     if (member.id === meId) {
-        return 'You';
+        return `You (${member.name})`;
     }
 
     return member.removed ? `${member.name} (left)` : member.name;

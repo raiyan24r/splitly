@@ -2,6 +2,7 @@ import { Head } from '@inertiajs/react';
 import {
     Activity,
     Archive,
+    Banknote,
     Check,
     Link2,
     Plus,
@@ -128,6 +129,21 @@ export default function GroupShow(props: GroupPageProps) {
 
         setEditing(null);
     }, [readOnly, needsIdentity]);
+
+    // Record a settle up from scratch (defaults to me paying someone).
+    const openPayment = () => {
+        if (readOnly) {
+            return;
+        }
+
+        if (needsIdentity) {
+            setPickerOpen(true);
+
+            return;
+        }
+
+        setSettle({});
+    };
 
     // Keyboard shortcut: "n" adds an expense.
     useEffect(() => {
@@ -335,7 +351,16 @@ export default function GroupShow(props: GroupPageProps) {
 
                 {/* Floating add button */}
                 {!readOnly && (
-                    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex justify-center bg-linear-to-t from-background via-background/80 to-transparent pt-10 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+                    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex justify-center gap-2 bg-linear-to-t from-background via-background/80 to-transparent pt-10 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+                        <Button
+                            size="lg"
+                            variant="secondary"
+                            onClick={openPayment}
+                            className="pointer-events-auto h-12 rounded-full px-5 text-base"
+                        >
+                            <Banknote className="size-5" />
+                            Add payment
+                        </Button>
                         <Button
                             size="lg"
                             onClick={openNew}

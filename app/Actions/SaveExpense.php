@@ -140,8 +140,9 @@ class SaveExpense
     }
 
     /**
-     * Claim expenses: the rows only say who is involved. Whatever people have
-     * already claimed is kept; anyone newly added starts unclaimed.
+     * Claim expenses: a row with a value claims that much for the person right
+     * away. A row without one keeps whatever they have already claimed, or
+     * leaves them to claim later.
      *
      * @param  list<array{member_id: int, value: string|null}>  $rows
      * @return list<array{member_id: int, amount: int, input_value: string|null}>
@@ -152,6 +153,22 @@ class SaveExpense
         $result = [];
 
         foreach ($rows as $row) {
+            if ($row['value'] !== null) {
+                $amount = Money::toMinor($row['value'], $currency);
+
+                if ($amount < 0) {
+                    throw ValidationException::withMessages(['splits' => 'A claim can not be negative.']);
+                }
+
+                $result[] = [
+                    'member_id' => $row['member_id'],
+                    'amount' => $amount,
+                    'input_value' => Money::toDecimal($amount, $currency),
+                ];
+
+                continue;
+            }
+
             $claim = $existing->get($row['member_id']);
 
             $result[] = [
@@ -165,7 +182,7 @@ class SaveExpense
 
         if ($claimed > $total) {
             throw ValidationException::withMessages([
-                'amount' => 'People have already claimed '.Money::format($claimed, $currency).', more than this total.',
+                'splits' => 'Claims add up to '.Money::format($claimed, $currency).', more than this total.',
             ]);
         }
 

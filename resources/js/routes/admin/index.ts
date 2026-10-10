@@ -2,7 +2,7 @@ import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFo
 import groups from './groups'
 import auditLogs from './audit-logs'
 /**
-* @see [serialized-closure]:2
+* @see routes/web.php:70
 * @route '/admin'
 */
 export const home = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ home.definition = {
 } satisfies RouteDefinition<["get","head"]>
 
 /**
-* @see [serialized-closure]:2
+* @see routes/web.php:70
 * @route '/admin'
 */
 home.url = (options?: RouteQueryOptions) => {
@@ -24,7 +24,7 @@ home.url = (options?: RouteQueryOptions) => {
 }
 
 /**
-* @see [serialized-closure]:2
+* @see routes/web.php:70
 * @route '/admin'
 */
 home.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -33,7 +33,7 @@ home.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 
 /**
-* @see [serialized-closure]:2
+* @see routes/web.php:70
 * @route '/admin'
 */
 home.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -42,7 +42,7 @@ home.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 })
 
 /**
-* @see [serialized-closure]:2
+* @see routes/web.php:70
 * @route '/admin'
 */
 const homeForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -51,7 +51,7 @@ const homeForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 /**
-* @see [serialized-closure]:2
+* @see routes/web.php:70
 * @route '/admin'
 */
 homeForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -60,7 +60,7 @@ homeForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
 })
 
 /**
-* @see [serialized-closure]:2
+* @see routes/web.php:70
 * @route '/admin'
 */
 homeForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

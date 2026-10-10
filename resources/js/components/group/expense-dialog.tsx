@@ -2,6 +2,8 @@ import { router } from '@inertiajs/react';
 import {
     Check,
     ChevronDown,
+    HandCoins,
+    Minus,
     Paperclip,
     Plus,
     StickyNote,
@@ -13,7 +15,7 @@ import { useMemo, useState } from 'react';
 import ExpenseController from '@/actions/App/Http/Controllers/ExpenseController';
 import MemberController from '@/actions/App/Http/Controllers/MemberController';
 import { CategoryIcon, categoryLabel } from '@/components/group/category-icon';
-import { useGroup } from '@/components/group/group-context';
+import { displayName, useGroup } from '@/components/group/group-context';
 import { MemberAvatar } from '@/components/group/member-avatar';
 import { fromDateTimeInput, zoneLabel } from '@/components/group/time';
 import { VatControl } from '@/components/group/vat-control';
@@ -42,9 +44,17 @@ import { allocate, calculateSplit } from '@/lib/split';
 import { cn } from '@/lib/utils';
 import type { Expense, SplitType } from '@/types/group';
 
-const SPLIT_OPTIONS: { value: SplitType; label: string }[] = [
+const SPLIT_OPTIONS: { value: SplitType; label: React.ReactNode }[] = [
     { value: 'equal', label: 'Equally' },
-    { value: 'claim', label: 'Claim' },
+    {
+        value: 'claim',
+        label: (
+            <span className="inline-flex items-center gap-1 text-primary">
+                <HandCoins className="size-3.5" />
+                Claim
+            </span>
+        ),
+    },
     { value: 'exact', label: 'Exact' },
     { value: 'percent', label: '%' },
 ];
@@ -139,16 +149,20 @@ function ExpenseForm({
                     : activeMembers.map((m) => m.id),
             ),
     );
-    const [values, setValues] = useState<Record<number, string>>(() =>
+    const [initialValues] = useState<Record<number, string>>(() =>
         Object.fromEntries(
             (expense?.splits ?? []).map((s) => [
                 s.member_id,
                 s.input_value !== null
                     ? String(Number(s.input_value))
-                    : toInput(s.amount, exp),
+                    : expense?.split_type === 'claim'
+                      ? ''
+                      : toInput(s.amount, exp),
             ]),
         ),
     );
+    const [values, setValues] = useState(initialValues);
+    const [valuesTouched, setValuesTouched] = useState(false);
 
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [processing, setProcessing] = useState(false);
@@ -158,14 +172,38 @@ function ExpenseForm({
         splitType === 'equal' ||
         splitType === 'adjustment' ||
         splitType === 'claim';
-    // Claims people already made on this expense; the server keeps them on save.
-    const claims = new Map(
-        expense?.split_type === 'claim'
-            ? expense.splits
-                  .filter((s) => s.input_value !== null)
-                  .map((s) => [s.member_id, s.amount])
-            : [],
-    );
+    // Exact / claim: once everyone but one person has an amount, that last
+    // person gets whatever is left. It keeps following the other values until
+    // they type their own. Waits for a first edit, so opening an old claim
+    // expense doesn't claim for someone on its own.
+    const autoFill = (() => {
+        if (
+            !valuesTouched ||
+            (splitType !== 'exact' && splitType !== 'claim')
+        ) {
+            return null;
+        }
+
+        const pool = activeMembers.filter(
+            (m) => splitType === 'exact' || included.has(m.id),
+        );
+        const blank = pool.filter((m) => (values[m.id] ?? '') === '');
+        const left =
+            total -
+            pool.reduce((s, m) => s + toMinor(values[m.id] ?? '', exp), 0);
+
+        return pool.length > 1 && blank.length === 1 && left > 0
+            ? { id: blank[0].id, value: toInput(left, exp) }
+            : null;
+    })();
+    const shownValues = autoFill
+        ? { ...values, [autoFill.id]: autoFill.value }
+        : values;
+
+    const setValue = (id: number, value: string) => {
+        setValuesTouched(true);
+        setValues({ ...values, [id]: value });
+    };
 
     const rows = useMemo(
         () =>
@@ -173,11 +211,14 @@ function ExpenseForm({
                 .filter((m) =>
                     usesInclusion
                         ? included.has(m.id)
-                        : (values[m.id] ?? '') !== '' &&
-                          Number(values[m.id]) !== 0,
+                        : (shownValues[m.id] ?? '') !== '' &&
+                          Number(shownValues[m.id]) !== 0,
                 )
-                .map((m) => ({ member_id: m.id, value: values[m.id] ?? '' })),
-        [activeMembers, usesInclusion, included, values],
+                .map((m) => ({
+                    member_id: m.id,
+                    value: shownValues[m.id] ?? '',
+                })),
+        [activeMembers, usesInclusion, included, shownValues],
     );
 
     const split = calculateSplit(total, splitType, rows, exp);
@@ -202,6 +243,14 @@ function ExpenseForm({
             return next;
         });
     };
+
+    const someIncluded = activeMembers.some((m) => included.has(m.id));
+    const allIncluded = activeMembers.every((m) => included.has(m.id));
+
+    const toggleAll = () =>
+        setIncluded(
+            allIncluded ? new Set() : new Set(activeMembers.map((m) => m.id)),
+        );
 
     // Someone added from inside the dialog joins the split straight away.
     const includeNewMember = (id: number) => {
@@ -291,7 +340,16 @@ function ExpenseForm({
             notes: notes || null,
             split_type: splitType,
             payers,
-            splits: rows,
+            // Claims left as they were are not resent, so the server keeps any
+            // claim someone made while this dialog was open.
+            splits:
+                splitType === 'claim' && expense?.split_type === 'claim'
+                    ? rows.map((r) =>
+                          r.value === initialValues[r.member_id]
+                              ? { ...r, value: '' }
+                              : r,
+                      )
+                    : rows,
             remove_receipt: removeReceipt,
             ...(receipt ? { receipt } : {}),
         };
@@ -398,7 +456,7 @@ function ExpenseForm({
                                 {activeMembers.map((m) => (
                                     <SelectItem key={m.id} value={String(m.id)}>
                                         <MemberAvatar member={m} size="xs" />
-                                        {m.id === me?.id ? 'You' : m.name}
+                                        {displayName(m, me?.id)}
                                     </SelectItem>
                                 ))}
                                 <SelectItem value={MULTIPLE}>
@@ -476,15 +534,68 @@ function ExpenseForm({
                         />
                     </div>
 
-                    {splitType === 'exact' && (
+                    {!expense && splitType === 'equal' && (
+                        <button
+                            type="button"
+                            onClick={() => changeSplitType('claim')}
+                            className="flex w-full items-start gap-2.5 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2.5 text-left text-xs transition-colors hover:bg-primary/10"
+                        >
+                            <HandCoins className="size-4 shrink-0 text-primary" />
+                            <span className="text-muted-foreground">
+                                <span className="font-medium text-foreground">
+                                    Not splitting it evenly?
+                                </span>{' '}
+                                Use{' '}
+                                <span className="font-medium text-primary">
+                                    Claim
+                                </span>{' '}
+                                and everyone enters their own share.
+                            </span>
+                        </button>
+                    )}
+
+                    {(splitType === 'exact' || splitType === 'claim') && (
                         <VatControl
                             onApply={applyVat}
-                            disabled={rows.length === 0}
+                            disabled={
+                                !rows.some((r) => toMinor(r.value, exp) > 0)
+                            }
                             className="justify-end"
                         />
                     )}
 
                     <div className="divide-y rounded-xl border bg-white/2">
+                        {splitType === 'claim' && (
+                            <p className="flex items-center gap-2 rounded-t-xl bg-primary/10 px-3 py-2 text-xs font-medium text-primary">
+                                <HandCoins className="size-4 shrink-0" />
+                                Enter a share now, or leave it blank and they
+                                claim it later.
+                            </p>
+                        )}
+                        {usesInclusion && (
+                            <button
+                                type="button"
+                                onClick={toggleAll}
+                                className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:text-foreground"
+                            >
+                                <span
+                                    className={cn(
+                                        'flex size-5 shrink-0 items-center justify-center rounded-md border transition-colors',
+                                        someIncluded &&
+                                            'border-primary bg-primary text-primary-foreground',
+                                    )}
+                                >
+                                    {allIncluded ? (
+                                        <Check className="size-3.5" />
+                                    ) : (
+                                        someIncluded && (
+                                            <Minus className="size-3.5" />
+                                        )
+                                    )}
+                                </span>
+                                {allIncluded ? 'Unselect all' : 'Select all'}
+                            </button>
+                        )}
                         {activeMembers.map((m) => {
                             const on = usesInclusion
                                 ? included.has(m.id)
@@ -517,34 +628,44 @@ function ExpenseForm({
                                     ) : null}
                                     <MemberAvatar member={m} size="sm" />
                                     <span className="min-w-0 flex-1 truncate text-sm">
-                                        {m.id === me?.id ? 'You' : m.name}
+                                        {displayName(m, me?.id)}
                                     </span>
 
                                     {splitType !== 'equal' &&
                                         splitType !== 'claim' && (
                                             <ValueInput
                                                 type={splitType}
-                                                value={values[m.id] ?? ''}
+                                                value={shownValues[m.id] ?? ''}
+                                                auto={autoFill?.id === m.id}
                                                 disabled={
                                                     splitType ===
                                                         'adjustment' && !on
                                                 }
                                                 onChange={(v) =>
-                                                    setValues({
-                                                        ...values,
-                                                        [m.id]: v,
-                                                    })
+                                                    setValue(m.id, v)
                                                 }
                                             />
                                         )}
 
                                     {splitType === 'claim' ? (
-                                        <span className="w-24 text-right text-xs text-muted-foreground">
-                                            {on &&
-                                                (claims.has(m.id)
-                                                    ? money(claims.get(m.id)!)
-                                                    : 'claims later')}
-                                        </span>
+                                        <div className="flex w-24 justify-end">
+                                            {on && (
+                                                <ValueInput
+                                                    type="claim"
+                                                    value={
+                                                        shownValues[m.id] ?? ''
+                                                    }
+                                                    auto={autoFill?.id === m.id}
+                                                    placeholder={(0).toFixed(
+                                                        exp,
+                                                    )}
+                                                    className="w-24"
+                                                    onChange={(v) =>
+                                                        setValue(m.id, v)
+                                                    }
+                                                />
+                                            )}
+                                        </div>
                                     ) : (
                                         <span
                                             className={cn(
@@ -565,9 +686,9 @@ function ExpenseForm({
 
                     {splitType === 'claim' && (
                         <p className="text-xs text-muted-foreground">
-                            Each person enters how much of this they owe next
-                            time they open the group. Anything nobody claims
-                            stays with whoever paid.
+                            Blank shares can be entered later by that person, or
+                            by anyone for them. Anything nobody claims stays
+                            with whoever paid.
                         </p>
                     )}
 
@@ -750,11 +871,18 @@ function ValueInput({
     value,
     onChange,
     disabled,
+    placeholder = '0',
+    auto,
+    className,
 }: {
     type: SplitType;
     value: string;
     onChange: (value: string) => void;
     disabled?: boolean;
+    placeholder?: string;
+    /** The value is the remaining amount, filled in automatically. */
+    auto?: boolean;
+    className?: string;
 }) {
     const suffix = {
         percent: '%',
@@ -780,8 +908,14 @@ function ValueInput({
                     )
                 }
                 inputMode="decimal"
-                placeholder="0"
-                className={cn('tabular h-8 w-20 text-right', suffix && 'pr-6')}
+                placeholder={placeholder}
+                title={auto ? 'The remaining amount' : undefined}
+                className={cn(
+                    'tabular h-8 w-20 text-right',
+                    suffix && 'pr-6',
+                    auto && 'border-primary/40 text-primary',
+                    className,
+                )}
             />
             {suffix && (
                 <span className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 text-xs text-muted-foreground">
