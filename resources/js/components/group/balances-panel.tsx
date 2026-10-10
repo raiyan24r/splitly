@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/react';
-import { ArrowRight, PartyPopper, Sparkles } from 'lucide-react';
+import { ArrowRight, PartyPopper, Share2, Sparkles } from 'lucide-react';
 import GroupController from '@/actions/App/Http/Controllers/GroupController';
 import { displayName, useGroup } from '@/components/group/group-context';
 import { MemberAvatar } from '@/components/group/member-avatar';
@@ -12,9 +12,11 @@ import type { Balances } from '@/types/group';
 export function BalancesPanel({
     balances,
     onSettle,
+    onShare,
 }: {
     balances: Balances;
     onSettle: (draft: SettleDraft) => void;
+    onShare: () => void;
 }) {
     const { group, members, me, member, money, readOnly } = useGroup();
     const transfers = group.simplify_debts
@@ -41,17 +43,27 @@ export function BalancesPanel({
                             ? 'Suggested payments'
                             : 'Who owes whom'}
                     </h3>
-                    {!readOnly && (
-                        <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <Sparkles className="size-3.5 text-primary" />
-                            Simplify
-                            <Switch
-                                checked={group.simplify_debts}
-                                onCheckedChange={toggleSimplify}
-                                aria-label="Simplify debts"
-                            />
-                        </label>
-                    )}
+                    <div className="flex items-center gap-4">
+                        <button
+                            type="button"
+                            onClick={onShare}
+                            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary"
+                        >
+                            <Share2 className="size-3.5" />
+                            Share
+                        </button>
+                        {!readOnly && (
+                            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Sparkles className="size-3.5 text-primary" />
+                                Simplify
+                                <Switch
+                                    checked={group.simplify_debts}
+                                    onCheckedChange={toggleSimplify}
+                                    aria-label="Simplify debts"
+                                />
+                            </label>
+                        )}
+                    </div>
                 </div>
 
                 {transfers.length === 0 ? (

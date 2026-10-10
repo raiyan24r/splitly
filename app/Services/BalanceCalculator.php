@@ -80,12 +80,20 @@ class BalanceCalculator
         }
 
         foreach ($payments as $payment) {
-            $net[$payment->from_member_id] = ($net[$payment->from_member_id] ?? 0) + $payment->amount;
-            $net[$payment->to_member_id] = ($net[$payment->to_member_id] ?? 0) - $payment->amount;
+            foreach ($payment->netEffect() as $memberId => $change) {
+                $net[$memberId] = ($net[$memberId] ?? 0) + $change;
+            }
 
             // Paying someone is the same as them now owing you that amount back.
+            // That holds when someone else paid on your behalf too.
             $owes[$payment->to_member_id][$payment->from_member_id] =
                 ($owes[$payment->to_member_id][$payment->from_member_id] ?? 0) + $payment->amount;
+
+            // ...unless they want it back, in which case you now owe them.
+            if ($payment->paid_by_member_id !== null && $payment->owes_payer_back) {
+                $owes[$payment->from_member_id][$payment->paid_by_member_id] =
+                    ($owes[$payment->from_member_id][$payment->paid_by_member_id] ?? 0) + $payment->amount;
+            }
         }
 
         return [

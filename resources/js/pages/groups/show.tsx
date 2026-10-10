@@ -9,6 +9,7 @@ import {
     Receipt,
     Scale,
     Settings,
+    Share2,
     Users,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -32,6 +33,7 @@ import {
     SettleDialog,
     type SettleDraft,
 } from '@/components/group/settle-dialog';
+import { ShareBalancesDialog } from '@/components/group/share-balances-dialog';
 import { Button } from '@/components/ui/button';
 import { Segmented } from '@/components/ui/segmented';
 import { useClipboard } from '@/hooks/use-clipboard';
@@ -92,6 +94,7 @@ export default function GroupShow(props: GroupPageProps) {
     );
     const [viewingId, setViewingId] = useState<number | null>(null);
     const [settle, setSettle] = useState<SettleDraft | null>(null);
+    const [shareOpen, setShareOpen] = useState(false);
     const [copied, copy] = useClipboard();
 
     const context = useMemo<GroupContextValue>(() => {
@@ -221,6 +224,14 @@ export default function GroupShow(props: GroupPageProps) {
                             <Button
                                 variant="ghost"
                                 size="icon"
+                                onClick={() => setShareOpen(true)}
+                                title="Share balances"
+                            >
+                                <Share2 />
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="icon"
                                 onClick={() => void copy(group.url)}
                                 title="Copy group link"
                             >
@@ -325,6 +336,7 @@ export default function GroupShow(props: GroupPageProps) {
                         {tab === 'balances' && (
                             <BalancesPanel
                                 balances={balances}
+                                onShare={() => setShareOpen(true)}
                                 onSettle={(draft) =>
                                     needsIdentity
                                         ? setPickerOpen(true)
@@ -400,6 +412,11 @@ export default function GroupShow(props: GroupPageProps) {
                 }}
             />
             <SettleDialog draft={settle} onClose={() => setSettle(null)} />
+            <ShareBalancesDialog
+                open={shareOpen}
+                onOpenChange={setShareOpen}
+                balances={balances}
+            />
         </GroupContext.Provider>
     );
 }

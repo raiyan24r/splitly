@@ -58,6 +58,8 @@ class GroupPageData
                     'id' => $p->id,
                     'from' => $p->from_member_id,
                     'to' => $p->to_member_id,
+                    'paid_by' => $p->paid_by_member_id,
+                    'owes_payer_back' => $p->owes_payer_back,
                     'amount' => $p->amount,
                     'paid_at' => $p->paid_at->toIso8601String(),
                     'note' => $p->note,

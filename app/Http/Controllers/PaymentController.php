@@ -61,7 +61,7 @@ class PaymentController extends Controller
     }
 
     /**
-     * @return array{from_member_id: int, to_member_id: int, amount: int, paid_at: string, note: string|null}
+     * @return array{from_member_id: int, to_member_id: int, paid_by_member_id: int|null, owes_payer_back: bool, amount: int, paid_at: string, note: string|null}
      */
     private function validated(Request $request, Group $group): array
     {
@@ -70,16 +70,24 @@ class PaymentController extends Controller
         $data = $request->validate([
             'from_member_id' => ['required', 'integer', $member],
             'to_member_id' => ['required', 'integer', 'different:from_member_id', $member],
+            // Someone else paying on from_member_id's behalf.
+            'paid_by_member_id' => ['nullable', 'integer', 'different:from_member_id', 'different:to_member_id', $member],
+            'owes_payer_back' => ['boolean'],
             'amount' => ['required', 'numeric', 'gt:0', 'max:99999999'],
             'paid_at' => ['required', 'date'],
             'note' => ['nullable', 'string', 'max:255'],
         ], [
             'to_member_id.different' => 'Pick two different people.',
+            'paid_by_member_id.different' => 'Whoever paid on their behalf must be someone else.',
         ]);
+
+        $paidBy = isset($data['paid_by_member_id']) ? (int) $data['paid_by_member_id'] : null;
 
         return [
             'from_member_id' => (int) $data['from_member_id'],
             'to_member_id' => (int) $data['to_member_id'],
+            'paid_by_member_id' => $paidBy,
+            'owes_payer_back' => $paidBy !== null && $request->boolean('owes_payer_back'),
             'amount' => Money::toMinor($data['amount'], $group->currency),
             // The browser sends an ISO instant in the viewer's timezone; store it as app-timezone wall-clock time.
             'paid_at' => CarbonImmutable::parse($data['paid_at'])
@@ -91,14 +99,20 @@ class PaymentController extends Controller
 
     private function describe(Group $group, string $verb, Payment $payment): string
     {
-        $names = Member::withTrashed()->whereIn('id', [$payment->from_member_id, $payment->to_member_id])->pluck('name', 'id');
+        $names = Member::withTrashed()
+            ->whereIn('id', array_filter([$payment->from_member_id, $payment->to_member_id, $payment->paid_by_member_id]))
+            ->pluck('name', 'id');
+        $from = $names[$payment->from_member_id] ?? '?';
+        $to = $names[$payment->to_member_id] ?? '?';
+        $amount = Money::format($payment->amount, $group->currency);
 
-        return sprintf(
-            '%s: %s paid %s %s',
-            $verb,
-            $names[$payment->from_member_id] ?? '?',
-            $names[$payment->to_member_id] ?? '?',
-            Money::format($payment->amount, $group->currency),
-        );
+        if ($payment->paid_by_member_id === null) {
+            return "{$verb}: {$from} paid {$to} {$amount}";
+        }
+
+        $paidBy = $names[$payment->paid_by_member_id] ?? '?';
+
+        return "{$verb}: {$paidBy} paid {$to} {$amount} for {$from}"
+            .($payment->owes_payer_back ? ", {$from} pays {$paidBy} back" : '');
     }
 }

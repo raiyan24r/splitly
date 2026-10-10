@@ -45,11 +45,14 @@ class ExportController extends Controller
                 $rows->push([$expense->spent_at->format('Y-m-d H:i'), $expense->description, $expense->category, $expense->amount, $effect]);
             }
 
+            $names = $members->pluck('name', 'id');
+
             foreach ($group->payments()->get() as $payment) {
-                $rows->push([$payment->paid_at->format('Y-m-d H:i'), 'Payment', 'payment', $payment->amount, [
-                    $payment->from_member_id => $payment->amount,
-                    $payment->to_member_id => -$payment->amount,
-                ]]);
+                $description = $payment->paid_by_member_id === null
+                    ? 'Payment'
+                    : 'Payment ('.($names[$payment->paid_by_member_id] ?? '?').' for '.($names[$payment->from_member_id] ?? '?').')';
+
+                $rows->push([$payment->paid_at->format('Y-m-d H:i'), $description, 'payment', $payment->amount, $payment->netEffect()]);
             }
 
             foreach ($rows->sortBy(0) as [$date, $description, $category, $amount, $effect]) {

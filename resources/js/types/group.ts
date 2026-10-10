@@ -58,6 +58,10 @@ export type Payment = {
     id: number;
     from: number;
     to: number;
+    /** Someone who paid on `from`'s behalf. */
+    paid_by: number | null;
+    /** Whether `from` now owes `paid_by` instead. */
+    owes_payer_back: boolean;
     amount: number;
     paid_at: string;
     note: string | null;

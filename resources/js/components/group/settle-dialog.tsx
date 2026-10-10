@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/react';
-import { ArrowRight, Trash2 } from 'lucide-react';
+import { ArrowRight, HandHeart, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
 import PaymentController from '@/actions/App/Http/Controllers/PaymentController';
 import { displayName, useGroup } from '@/components/group/group-context';
@@ -7,6 +7,7 @@ import { MemberAvatar } from '@/components/group/member-avatar';
 import { fromDateTimeInput, zoneLabel } from '@/components/group/time';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
     Dialog,
     DialogContent,
@@ -20,6 +21,7 @@ import {
     SelectContent,
     SelectItem,
     SelectTrigger,
+    SelectValue,
 } from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { useDateTimeInput } from '@/hooks/use-date-time-input';
@@ -84,6 +86,10 @@ function SettleForm({
     );
     const [paidAt, setPaidAt] = useDateTimeInput(editing?.paid_at);
     const [note, setNote] = useState(editing?.note ?? '');
+    // Someone else paying on From's behalf.
+    const [onBehalf, setOnBehalf] = useState(Boolean(editing?.paid_by));
+    const [paidBy, setPaidBy] = useState(String(editing?.paid_by ?? ''));
+    const [owesBack, setOwesBack] = useState(editing?.owes_payer_back ?? false);
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [processing, setProcessing] = useState(false);
 
@@ -95,12 +101,19 @@ function SettleForm({
         onSuccess: onDone,
     };
 
+    // Picking the payer as From or To afterwards clears the choice.
+    const payer = paidBy !== from && paidBy !== to ? paidBy : '';
+    const name = (id: string) =>
+        Number(id) === me?.id ? 'you' : (member(Number(id))?.name ?? 'them');
+
     const submit = (event: React.FormEvent) => {
         event.preventDefault();
 
         const data = {
             from_member_id: Number(from),
             to_member_id: Number(to),
+            paid_by_member_id: onBehalf && payer ? Number(payer) : null,
+            owes_payer_back: onBehalf && payer !== '' && owesBack,
             amount,
             paid_at: fromDateTimeInput(paidAt),
             note: note || null,
@@ -182,6 +195,88 @@ function SettleForm({
                 message={errors.to_member_id || errors.from_member_id}
             />
 
+            {!onBehalf ? (
+                !readOnly && (
+                    <button
+                        type="button"
+                        onClick={() => setOnBehalf(true)}
+                        className="flex w-full items-start gap-2.5 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2.5 text-left text-xs transition-colors hover:bg-primary/10"
+                    >
+                        <HandHeart className="size-4 shrink-0 text-primary" />
+                        <span className="text-muted-foreground">
+                            <span className="font-medium text-primary">
+                                Someone else paid this for {name(from)}?
+                            </span>{' '}
+                            Record who covered it, and whether they want it
+                            back.
+                        </span>
+                    </button>
+                )
+            ) : (
+                <div className="animate-pop-in space-y-3 rounded-xl border bg-white/2 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-medium text-muted-foreground">
+                            Paid on {name(from)}&rsquo;s behalf by
+                        </span>
+                        {!readOnly && (
+                            <button
+                                type="button"
+                                onClick={() => setOnBehalf(false)}
+                                className="text-muted-foreground hover:text-foreground"
+                                aria-label="Nobody else paid"
+                            >
+                                <X className="size-4" />
+                            </button>
+                        )}
+                    </div>
+                    <Select
+                        value={payer}
+                        onValueChange={setPaidBy}
+                        disabled={readOnly}
+                    >
+                        <SelectTrigger className="w-full data-[size=default]:h-10">
+                            <SelectValue placeholder="Choose who paid" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {activeMembers
+                                .filter(
+                                    (m) =>
+                                        String(m.id) !== from &&
+                                        String(m.id) !== to,
+                                )
+                                .map((m) => (
+                                    <SelectItem key={m.id} value={String(m.id)}>
+                                        <MemberAvatar member={m} size="xs" />
+                                        {displayName(m, me?.id)}
+                                    </SelectItem>
+                                ))}
+                        </SelectContent>
+                    </Select>
+                    {payer && (
+                        <>
+                            <label className="flex items-center gap-2 text-sm">
+                                <Checkbox
+                                    checked={owesBack}
+                                    onCheckedChange={(c) =>
+                                        setOwesBack(c === true)
+                                    }
+                                    disabled={readOnly}
+                                />
+                                <span className="first-letter:uppercase">
+                                    {name(from)} will pay {name(payer)} back
+                                </span>
+                            </label>
+                            <p className="text-xs text-muted-foreground">
+                                {owesBack
+                                    ? `Settled with ${name(to)}, and now owed to ${name(payer)} instead.`
+                                    : `Settled with ${name(to)}, and nothing is owed to ${name(payer)}.`}
+                            </p>
+                        </>
+                    )}
+                    <InputError message={errors.paid_by_member_id} />
+                </div>
+            )}
+
             <div className="relative">
                 <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm font-medium text-muted-foreground">
                     {group.currency}
@@ -231,7 +326,12 @@ function SettleForm({
                     {!readOnly && (
                         <Button
                             type="submit"
-                            disabled={processing || !amount || from === to}
+                            disabled={
+                                processing ||
+                                !amount ||
+                                from === to ||
+                                (onBehalf && !payer)
+                            }
                         >
                             {processing && <Spinner />}
                             {editing ? 'Save' : 'Record payment'}

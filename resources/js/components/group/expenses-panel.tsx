@@ -352,14 +352,29 @@ function PaymentRow({
             </span>
             <div className="min-w-0 flex-1 text-sm">
                 <span className="font-medium">
-                    {displayName(member(payment.from), me?.id)}
+                    {displayName(
+                        member(payment.paid_by ?? payment.from),
+                        me?.id,
+                    )}
                 </span>{' '}
                 <span className="text-muted-foreground">paid</span>{' '}
                 <span className="font-medium">
                     {displayName(member(payment.to), me?.id)}
                 </span>
+                {payment.paid_by !== null && (
+                    <>
+                        {' '}
+                        <span className="text-muted-foreground">for</span>{' '}
+                        <span className="font-medium">
+                            {displayName(member(payment.from), me?.id)}
+                        </span>
+                    </>
+                )}
                 <div className="truncate text-xs text-muted-foreground">
                     {formatTime(payment.paid_at)}
+                    {payment.paid_by !== null &&
+                        payment.owes_payer_back &&
+                        ` · owed back to ${displayName(member(payment.paid_by), me?.id)}`}
                     {payment.note && ` · ${payment.note}`}
                 </div>
             </div>
